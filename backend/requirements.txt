@@ -1,0 +1,45 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-multipart==0.0.9
+
+# Parsing
+pymupdf==1.24.10
+
+# Chunking / tokenization
+tiktoken==0.7.0
+
+# Embeddings
+sentence-transformers==3.1.1
+torch==2.4.1
+
+# Vector search
+faiss-cpu==1.8.0.post1
+
+# Keyword search
+rank-bm25==0.2.2
+
+# NER
+spacy==3.7.6
+
+# LLM client — used for BOTH OpenAI and Groq (Groq's API is OpenAI-compatible,
+# see app/core/llm_client.py). No separate groq package needed.
+openai==1.51.0
+
+# Metadata store
+sqlmodel==0.0.22
+
+# Caching
+cachetools==5.5.0
+
+# Utilities
+numpy==1.26.4
+python-dotenv==1.0.1
+loguru==0.7.2
+
+
+requests==2.32.3
+langfuse==2.60.10
+
+httpx==0.27.2

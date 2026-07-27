@@ -1,0 +1,52 @@
+# --------------------
+# Backend
+# --------------------
+
+backend/venv311/
+backend/__pycache__/
+backend/.env
+
+# Storage files (if they are generated at runtime)
+backend/storage/
+
+# --------------------
+# Frontend
+# --------------------
+
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# --------------------
+# Python
+# --------------------
+
+*.pyc
+*.pyo
+*.pyd
+
+# --------------------
+# VS Code
+# --------------------
+
+.vscode/
+
+# --------------------
+# Operating System Files
+# --------------------
+
+.DS_Store
+Thumbs.db
+
+
+
+
+# DeepEval cache
+backend/.deepeval/
+
+# Temporary scripts
+backend/tmp_*.py
+
+# Python cache
+__pycache__/
+*.pyc

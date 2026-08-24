@@ -25,6 +25,7 @@ heuristic -- e.g. it can't detect that a chunk mentions the wrong year's
 """
 
 import math
+import re
 
 from app.core.config import Settings
 from app.services.rag.generation.context_compressor import CompressedContext
@@ -74,5 +75,17 @@ class ConfidenceScorer:
             return 1.0
 
         combined_text = " ".join(cc.chunk.text.lower() for cc in compressed_chunks)
-        matched = sum(1 for term in all_terms if term.lower() in combined_text)
+        matched = 0
+        for term in all_terms:
+            term_lower = term.lower().strip()
+            if not term_lower:
+                continue
+            if term_lower in combined_text:
+                matched += 1
+            else:
+                # Check significant sub-words (length > 3) for multi-word or compound terms
+                words = [w for w in re.findall(r"\b[a-z]{4,}\b", term_lower)]
+                if words and any(w in combined_text for w in words):
+                    matched += 1
+
         return matched / len(all_terms)

@@ -40,11 +40,19 @@ names that weren't stated or clearly implied by the conversation.
 ellipsis, or follow-up references ("what about Europe?", "and last year?"). \
 Do not pull in unrelated details from earlier turns.
 - If the question is already clear and specific, return it unchanged.
+- CRITICAL: If the question contains a specific number for a calculation \
+(e.g. "earnings of 50 shares", "profit for 200 units", "revenue for 30%"), \
+you MUST preserve that exact number in the rewritten question. Never drop or \
+change numerical quantities the user specified.
 - Output ONLY the rewritten question. No preamble, no quotes, no explanation.
 
 Example:
 Input: How much profit?
 Output: What was the company's net profit after tax?
+
+Example (calculation with number):
+Input: what is the earning of 50 shares?
+Output: What is the total earnings for 50 shares, given the earnings per share stated in the document?
 
 Example (with conversation context):
 Recent conversation:
@@ -91,9 +99,13 @@ class QueryRewriter:
             rewritten = await self.llm_client.complete(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                max_tokens=100,
+                max_tokens=300,
             )
-            cleaned = rewritten.strip().strip('"').strip()
+            cleaned = rewritten.strip().strip('"').strip("'").strip()
+            # If the output contains multiple lines (e.g. intro text), pick the last non-empty line
+            if "\n" in cleaned:
+                lines = [line.strip().strip('"').strip("'") for line in cleaned.splitlines() if line.strip()]
+                cleaned = lines[-1] if lines else query
             return cleaned if cleaned else query
 
         except Exception:

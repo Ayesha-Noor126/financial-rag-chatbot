@@ -352,7 +352,10 @@ function App() {
                             <span>Sources:</span>
                             {msg.citations.map((c, i) => (
                               <span key={i} className="citation-tag">
-                                p.{c.page_number}
+                                {c.filename
+                                  ? `${c.filename.length > 20 ? c.filename.slice(0, 20) + '…' : c.filename} · `
+                                  : ''}
+                                Page {c.page_number}
                                 {c.section ? ` · ${c.section}` : ''}
                               </span>
                             ))}

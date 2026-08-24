@@ -87,52 +87,6 @@ _ANSWER_SYSTEM_TEMPLATE = ANSWER_SYSTEM_PROMPT.replace(
     NO_ANSWER_PHRASE, "{{no_answer_phrase}}"
 )
 
-PROMPTS: list[dict] = [
-    {
-        "name": "fin-rag-answer-system",
-        "prompt": _ANSWER_SYSTEM_TEMPLATE,
-        "type": "text",
-        "labels": ["production"],
-        "config": {
-            "description": (
-                "System prompt for grounded financial-document QA. "
-                "Variable: {{no_answer_phrase}} — the exact sentence the model "
-                "should output when the sources do not contain the answer."
-            ),
-            "variables": ["no_answer_phrase"],
-            "model": "llama-3.3-70b-versatile",
-        },
-    },
-    {
-        "name": "fin-rag-web-system",
-        "prompt": WEB_SYSTEM_PROMPT,
-        "type": "text",
-        "labels": ["production"],
-        "config": {
-            "description": (
-                "System prompt for web-search fallback answers. "
-                "No runtime variables — static instruction block."
-            ),
-            "variables": [],
-            "model": "llama-3.3-70b-versatile",
-        },
-    },
-    {
-        "name": "fin-rag-rewriter-system",
-        "prompt": REWRITER_SYSTEM_PROMPT,
-        "type": "text",
-        "labels": ["production"],
-        "config": {
-            "description": (
-                "System prompt for query rewriting. "
-                "Converts short/ambiguous questions into standalone queries. "
-                "No runtime variables — static instruction block."
-            ),
-            "variables": [],
-            "model": "llama-3.3-70b-versatile",
-        },
-    },
-]
 
 
 def main() -> None:
@@ -150,6 +104,55 @@ def main() -> None:
         )
         sys.exit(1)
 
+    # Build prompt definitions here (inside main) so settings.llm_model is resolved
+    # from the live .env instead of being hardcoded.
+    prompts: list[dict] = [
+        {
+            "name": "fin-rag-answer-system",
+            "prompt": _ANSWER_SYSTEM_TEMPLATE,
+            "type": "text",
+            "labels": ["production"],
+            "config": {
+                "description": (
+                    "System prompt for grounded financial-document QA. "
+                    "Variable: {{no_answer_phrase}} — the exact sentence the model "
+                    "should output when the sources do not contain the answer."
+                ),
+                "variables": ["no_answer_phrase"],
+                "model": settings.llm_model,
+            },
+        },
+        {
+            "name": "fin-rag-web-system",
+            "prompt": WEB_SYSTEM_PROMPT,
+            "type": "text",
+            "labels": ["production"],
+            "config": {
+                "description": (
+                    "System prompt for web-search fallback answers. "
+                    "No runtime variables — static instruction block."
+                ),
+                "variables": [],
+                "model": settings.llm_model,
+            },
+        },
+        {
+            "name": "fin-rag-rewriter-system",
+            "prompt": REWRITER_SYSTEM_PROMPT,
+            "type": "text",
+            "labels": ["production"],
+            "config": {
+                "description": (
+                    "System prompt for query rewriting. "
+                    "Converts short/ambiguous questions into standalone queries. "
+                    "No runtime variables — static instruction block."
+                ),
+                "variables": [],
+                "model": settings.llm_model,
+            },
+        },
+    ]
+
     lf = Langfuse(
         public_key=settings.langfuse_public_key,
         secret_key=settings.langfuse_secret_key,
@@ -157,9 +160,9 @@ def main() -> None:
     )
 
     logger.info("Connected to Langfuse at {}", settings.langfuse_host)
-    logger.info("Seeding {} prompt(s)…", len(PROMPTS))
+    logger.info("Seeding {} prompt(s) with model={}…", len(prompts), settings.llm_model)
 
-    for defn in PROMPTS:
+    for defn in prompts:
         name = defn["name"]
         try:
             created = lf.create_prompt(

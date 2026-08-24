@@ -19,7 +19,10 @@ BASE_DIR = Path(__file__).resolve().parents[2]  # backend/
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(str(BASE_DIR / ".env"), ".env"),
+        extra="ignore"
+    )
 
     # --- App ---
     app_name: str = "Financial Document RAG Chatbot"
@@ -64,7 +67,7 @@ class Settings(BaseSettings):
     # three values in .env, no code changes.
     llm_provider: str = "groq"
     llm_api_key: str = Field(default="", description="Set via .env: OPENAI_API_KEY or GROQ_API_KEY")
-    llm_model: str = "llama-3.3-70b-versatile"  # Groq default; use "gpt-5" if llm_provider=openai
+    llm_model: str = "openai/gpt-oss-20b"  # Default for Groq; set via LLM_MODEL in .env
     llm_base_url: str = "https://api.groq.com/openai/v1"  # OpenAI: https://api.openai.com/v1
     llm_temperature: float = 0.0  # deterministic, grounded answers only
 

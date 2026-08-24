@@ -48,7 +48,7 @@ WEB_INTENT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-CITATION_MARKER_RE = re.compile(r"\[Source (\d+)\]")
+CITATION_MARKER_RE = re.compile(r"\[Source (\d+)(?:,\s*Page\s*\d+)?\]")
 METADATA_SENTINEL = "\n[[METADATA]]"
 
 # Hardcoded fallback for the web-search system prompt.
@@ -58,7 +58,8 @@ WEB_SYSTEM_PROMPT = (
     "You are a helpful assistant. Answer the user's question using ONLY "
     "the provided web search snippets. Be concise and factual. "
     "If the snippets do not contain enough information to answer, say so clearly. "
-    "Do not invent numbers or facts."
+    "Do not invent numbers or facts. Output ONLY the direct answer; do NOT repeat or echo "
+    "the user's question, and do NOT output internal thinking notes."
 )
 
 
@@ -170,7 +171,7 @@ class AnswerService:
         if trace:
             generation = trace.generation(
                 name="grounded-answer-stream",
-                model=getattr(self.llm_client, "model_name", "llama-3.3-70b-versatile"),
+                model=getattr(self.llm_client, "model_name", ""),
                 input=user_prompt,
             )
         start = time.perf_counter()
@@ -178,7 +179,7 @@ class AnswerService:
             async for token in self.llm_client.stream_complete(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                max_tokens=600,
+                max_tokens=1000,
             ):
                 full_text += token
                 yield token
@@ -257,7 +258,7 @@ class AnswerService:
         if trace:
             generation = trace.generation(
                 name="grounded-answer",
-                model=getattr(self.llm_client, "model_name", "llama-3.3-70b-versatile"),
+                model=getattr(self.llm_client, "model_name", ""),
                 input=user_prompt,
             )
         try:
@@ -265,7 +266,7 @@ class AnswerService:
                 await self.llm_client.complete(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    max_tokens=600,
+                    max_tokens=1000,
                 )
             ).strip()
             if generation:
@@ -321,7 +322,7 @@ class AnswerService:
         if trace:
             generation = trace.generation(
                 name="web-fallback-answer",
-                model=getattr(self.llm_client, "model_name", "llama-3.3-70b-versatile"),
+                model=getattr(self.llm_client, "model_name", ""),
                 input=sources_block,
             )
         try:

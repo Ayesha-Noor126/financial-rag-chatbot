@@ -16,16 +16,26 @@ where we need the full string before proceeding.
 
 Groq's API is OpenAI-wire-compatible (same request/response shape, just a
 different base_url), so both providers go through this one client.
-"""
-"""
-Provider-agnostic async LLM client (OpenAI or Groq).
-...
+
+Reasoning-model compatibility note
+────────────────────────────────────
+Models like openai/gpt-oss-120b on Groq are reasoning models: they emit an
+internal <think> chain before producing visible content.  The OpenAI SDK
+surfaces this via message.model_extra['reasoning'].  When message.content is
+empty (which can happen with very low max_tokens budgets that are exhausted by
+reasoning tokens), _extract_content() falls back to the reasoning field so
+callers always receive a non-empty string.  The max_tokens parameter passed by
+callers should be large enough for the expected visible output; reasoning
+tokens are counted separately and do NOT reduce the max_tokens budget.
 """
 
+import os
 from collections.abc import AsyncIterator
 from typing import NamedTuple
 
+from loguru import logger
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessage
 
 from app.core.config import Settings
 
@@ -36,15 +46,50 @@ class UsageInfo(NamedTuple):
     total_tokens: int
 
 
+def _extract_content(message: ChatCompletionMessage) -> str:
+    """
+    Return the visible text from a chat completion message.
+    Never returns internal reasoning chains, and strips stray <think> tags.
+    """
+    content = message.content or ""
+    if "<think>" in content and "</think>" in content:
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+    return content.strip()
+
+
 class LLMClient:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.model_name = settings.llm_model  # exposed for Langfuse generation() calls
+
+        api_key = (
+            settings.llm_api_key
+            or os.getenv("GROQ_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
+            or ""
+        )
+
+        if not api_key:
+            raise ValueError(
+                "LLM_API_KEY (or GROQ_API_KEY / OPENAI_API_KEY) is not set. "
+                "Add it to backend/.env before starting the server."
+            )
+
         self.client = AsyncOpenAI(
-            api_key=settings.llm_api_key,
+            api_key=api_key,
             base_url=settings.llm_base_url,
         )
         self.last_usage: UsageInfo | None = None  # populated after each call, read by tracing code
+
+        # Log configuration at construction time so misconfigured model names
+        # are visible in the startup log before the first request arrives.
+        # The API key is intentionally NOT logged.
+        logger.info(
+            "LLMClient ready — provider={provider}, base_url={base_url}, model={model}",
+            provider=settings.llm_provider,
+            base_url=settings.llm_base_url,
+            model=settings.llm_model,
+        )
 
     async def complete(self, system_prompt: str, user_prompt: str, max_tokens: int = 512) -> str:
         response = await self.client.chat.completions.create(
@@ -62,7 +107,7 @@ class LLMClient:
                 completion_tokens=response.usage.completion_tokens,
                 total_tokens=response.usage.total_tokens,
             )
-        return response.choices[0].message.content or ""
+        return _extract_content(response.choices[0].message)
 
     async def stream_complete(
         self, system_prompt: str, user_prompt: str, max_tokens: int = 600

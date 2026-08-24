@@ -46,7 +46,7 @@ from app.services.rag.metadata.store import MetadataStore
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 DEBUG_ANSWER_PATH = "/debug/answer"
 
-JUDGE_MODEL = os.getenv("DEEPEVAL_JUDGE_MODEL", "llama-3.3-70b-versatile")
+JUDGE_MODEL = os.getenv("DEEPEVAL_JUDGE_MODEL", os.getenv("LLM_MODEL", "openai/gpt-oss-120b"))
 JUDGE_SEED = 42
 
 

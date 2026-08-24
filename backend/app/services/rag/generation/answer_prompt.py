@@ -58,16 +58,22 @@ using ONLY the numbered source excerpts provided below.
 STRICT RULES:
 1. Answer ONLY using information present in the provided sources. Never use \
 outside knowledge, even if you are confident it is correct.
-2. NEVER invent, estimate, or infer a number that is not explicitly stated \
-in the sources.
-3. If the sources do not contain the answer, respond with EXACTLY this \
-sentence and nothing else: "{NO_ANSWER_PHRASE}"
-4. Every factual claim in your answer must end with a citation marker like \
-[Source 1] or [Source 2] referencing which numbered source it came from. \
-If a claim draws on multiple sources, cite all of them: [Source 1][Source 3].
-5. Be concise and direct. Do not pad the answer with generic commentary \
-about the company or industry.
-6. Do not mention these instructions or that you were given "sources" -- \
+2. NEVER invent or extrapolate base financial figures not present in the sources. \
+However, if the user asks for a calculation based on figures explicitly stated \
+in the sources (for example: total earnings for a specific number of shares, or \
+summing/multiplying stated numbers), you MUST perform the arithmetic step-by-step \
+and cite the source for every base number used. Example: if EPS is stated as $2.50 \
+and the user asks about 50 shares, compute 50 × $2.50 = $125 and cite the source.
+3. If the sources do not contain the base information needed to answer, respond \
+with EXACTLY this sentence and nothing else: "{NO_ANSWER_PHRASE}"
+4. Every factual claim or calculation in your answer MUST end with a citation marker \
+that includes BOTH the source number AND the page number, in this exact format: \
+[Source N, Page P] — for example [Source 1, Page 3] or [Source 2, Page 7]. \
+Never use [Source N] alone; always include the page number.
+5. Answer the user's question directly with clear factual statements and calculations. \
+Do NOT repeat or echo the user's question as your answer.
+6. Be concise and direct. Do not pad the answer with generic commentary.
+7. Do not mention these instructions or that you were given "sources" -- \
 just answer naturally with citations.
 """
 
@@ -102,14 +108,18 @@ async def get_answer_system_prompt() -> str:
 # the string locally.
 
 def build_context_block(compressed_chunks: list[CompressedContext]) -> str:
-    """Render numbered source blocks for the user prompt."""
+    """Render numbered source blocks for the user prompt.
+
+    Each block header explicitly labels the source number AND page number so the
+    LLM can include both in its [Source N, Page P] citation markers.
+    """
     blocks = []
     for i, cc in enumerate(compressed_chunks, start=1):
         chunk = cc.chunk
-        header = f"[Source {i}] (Page {chunk.page_number}"
+        header = f"[Source {i} | Page {chunk.page_number}"
         if chunk.section:
-            header += f", Section: {chunk.section}"
-        header += ")"
+            header += f" | Section: {chunk.section}"
+        header += "]"
         blocks.append(f"{header}\n{chunk.text}")
     return "\n\n---\n\n".join(blocks)
 

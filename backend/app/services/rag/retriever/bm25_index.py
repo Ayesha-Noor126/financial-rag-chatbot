@@ -25,7 +25,7 @@ from rank_bm25 import BM25Okapi
 
 from app.core.config import Settings
 
-TOKEN_RE = re.compile(r"[a-zA-Z0-9%$€£]+")
+TOKEN_RE = re.compile(r"[a-zA-Z0-9%$€£₹]+")
 
 
 def tokenize(text: str) -> list[str]:

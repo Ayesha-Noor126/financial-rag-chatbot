@@ -526,3 +526,33 @@
   border-color: #fca5a5;
   background: #fff5f5;
 }
+
+/* =========================================================================
+   Streaming cursor — blinking caret shown while tokens arrive
+   ========================================================================= */
+
+.stream-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #0ea5e9;
+  border-radius: 1px;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: stream-blink 0.8s step-start infinite;
+}
+
+@keyframes stream-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Subtle fade-in for each new assistant bubble */
+.message.assistant .bubble {
+  animation: bubble-in 0.18s ease-out both;
+}
+
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

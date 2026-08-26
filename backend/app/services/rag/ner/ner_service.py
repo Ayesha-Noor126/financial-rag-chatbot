@@ -23,13 +23,13 @@ import spacy
 from app.core.config import Settings
 
 YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
-CURRENCY_RE = re.compile(r"\b(USD|EUR|GBP|CHF|PKR|INR|\$|€|£)\b", re.IGNORECASE)
+CURRENCY_RE = re.compile(r"\b(USD|EUR|GBP|CHF|PKR|INR|RS|RUPEES?|\$|€|£|₹)\b", re.IGNORECASE)
 
 FINANCIAL_METRIC_TERMS = [
-    "revenue", "net income", "net profit", "operating profit", "gross profit",
-    "ebitda", "ebit", "total assets", "total liabilities", "cash flow",
-    "operating cash flow", "free cash flow", "equity", "dividend",
-    "earnings per share", "eps", "gross margin", "operating margin",
+    "revenue", "revenues", "net income", "net profit", "net profits", "operating profit", "operating profits",
+    "gross profit", "gross profits", "ebitda", "ebit", "total assets", "total liabilities", "cash flow",
+    "operating cash flow", "free cash flow", "equity", "dividend", "dividends",
+    "earnings per share", "earning per share", "eps", "gross margin", "operating margin",
     "cost of goods sold", "cogs", "capital expenditure", "capex",
 ]
 
@@ -74,9 +74,13 @@ class NERService:
 
     def extract(self, text: str) -> ExtractedEntities:
         entities = ExtractedEntities()
+        
+        # spaCy NER on title-cased version as well as raw text, so lowercased queries ("netsol technologies")
+        # get recognized as ORG entities even if uncapitalized.
         doc = self.nlp(text)
+        doc_title = self.nlp(text.title())
 
-        for ent in doc.ents:
+        for ent in list(doc.ents) + list(doc_title.ents):
             if ent.label_ == "ORG":
                 entities.companies.append(ent.text)
             elif ent.label_ == "GPE" and ent.text.lower() in REGION_TERMS:
@@ -84,9 +88,7 @@ class NERService:
 
         lowered = text.lower()
 
-        # Using finditer + group(0) rather than findall, since YEAR_RE has a
-        # capturing group ("19"/"20") and findall would return that group
-        # instead of the full 4-digit year match.
+        # Extract 4-digit years
         entities.years = list({m.group(0) for m in YEAR_RE.finditer(text)})
 
         entities.currencies = list({m.group(0).upper() for m in CURRENCY_RE.finditer(text)})

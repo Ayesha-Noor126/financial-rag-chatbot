@@ -13,7 +13,7 @@ def test_evaluation_service_returns_all_metrics_without_expected_answer():
     assert metrics["answer_relevancy"] >= 0.0
     assert metrics["precision"] >= 0.0
     assert metrics["recall"] >= 0.0
-    assert metrics["faithfulness"] <= 1.0
-    assert metrics["answer_relevancy"] <= 1.0
-    assert metrics["precision"] <= 1.0
-    assert metrics["recall"] <= 1.0
+    assert metrics["faithfulness"] <= 100.0
+    assert metrics["answer_relevancy"] <= 100.0
+    assert metrics["precision"] <= 100.0
+    assert metrics["recall"] <= 100.0

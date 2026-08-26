@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
     enable_web_fallback: bool = True
     tavily_max_results: int = 5
-    tavily_search_depth: str = "basic"  # "basic" or "advanced" (advanced = slower, deeper)
+    tavily_search_depth: str = "advanced"  # "basic" or "advanced" (advanced = deeper financial data extraction)
 
     # --- Caching ---
     embedding_cache_size: int = 512

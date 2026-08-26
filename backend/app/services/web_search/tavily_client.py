@@ -55,7 +55,7 @@ class TavilyClient:
             WebSource(
                 title=item.get("title", ""),
                 url=item.get("url", ""),
-                snippet=item.get("content", "")[:500],
+                snippet=item.get("content", "")[:2000],
             )
             for item in data.get("results", [])
         ]

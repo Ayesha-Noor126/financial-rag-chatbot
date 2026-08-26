@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+venv311/
+.venv/
+.pytest_cache/
+.deepeval/
+storage/
+.env
+.git
+.gitignore

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { checkHealth, sendChatMessage, uploadDocument } from './api'
+import { checkHealth, streamChatMessage, uploadDocument } from './api'
 import { useVoiceInput } from './hooks/useVoiceInput'
 import { useVoiceOutput } from './hooks/useVoiceOutput'
 import './App.css'
@@ -200,33 +200,83 @@ function App() {
     setSending(true)
     setChatError('')
     setInput('')
+
+    // Add the user message immediately
     setMessages((prev) => [...prev, { role: 'user', content: text }])
 
+    // Create a placeholder for the streaming assistant reply.
+    // We use a stable ID so we can update it in-place as tokens arrive.
+    const streamId = `msg-${Date.now()}`
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: streamId,
+        role: 'assistant',
+        content: '',        // filled token by token
+        streaming: true,    // drives the blinking cursor in CSS
+        citations: [],
+        webSources: [],
+        confidence: null,
+        usedWeb: false,
+        faithfulness: null,
+        answerRelevancy: null,
+        precision: null,
+        recall: null,
+      },
+    ])
+
     try {
-      const response = await sendChatMessage(sessionId, text)
-      if (response.session_id) {
-        setSessionId(response.session_id)
-        localStorage.setItem(SESSION_KEY, response.session_id)
-      }
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}`,
-          role: 'assistant',
-          content: response.answer,
-          citations: response.citations || [],
-          webSources: response.web_sources || [],
-          confidence: response.confidence_score,
-          usedWeb: response.used_web_fallback,
-          faithfulness: response.faithfulness,
-          answerRelevancy: response.answer_relevancy,
-          precision: response.precision,
-          recall: response.recall,
+      const newSessionId = await streamChatMessage(
+        sessionId,
+        text,
+        // onToken — append each arriving piece to the placeholder message
+        (token) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamId
+                ? { ...m, content: m.content + token }
+                : m
+            )
+          )
         },
-      ])
+        // onDone — merge final metadata once the stream is finished
+        (meta) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamId
+                ? {
+                    ...m,
+                    streaming: false,
+                    citations: meta.citations || [],
+                    webSources: meta.web_sources || [],
+                    confidence: meta.confidence_score,
+                    usedWeb: meta.used_web_fallback,
+                    faithfulness: meta.faithfulness,
+                    answerRelevancy: meta.answer_relevancy,
+                    precision: meta.precision,
+                    recall: meta.recall,
+                  }
+                : m
+            )
+          )
+        },
+      )
+
+      if (newSessionId) {
+        setSessionId(newSessionId)
+        localStorage.setItem(SESSION_KEY, newSessionId)
+      }
     } catch (error) {
+      // Remove the empty placeholder and show an error banner
+      setMessages((prev) => prev.filter((m) => m.id !== streamId))
       setChatError(error.message || 'Failed to send message')
     } finally {
+      // Mark streaming as done even if metadata never arrived
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === streamId ? { ...m, streaming: false } : m
+        )
+      )
       setSending(false)
     }
   }
@@ -342,7 +392,10 @@ function App() {
               {messages.map((msg, index) => (
                 <div key={msg.id ?? index} className={`message ${msg.role}`}>
                   <div className="bubble">
-                    <p>{msg.content}</p>
+                    <p>
+                      {msg.content}
+                      {msg.streaming && <span className="stream-cursor" aria-hidden="true" />}
+                    </p>
 
                     {msg.role === 'assistant' && (
                       <>
@@ -382,27 +435,24 @@ function App() {
                           {msg.usedWeb ? <span>· Web fallback used</span> : null}
                         </div>
 
-                        {/* Speaker button */}
-                        <div className="bubble-actions">
-                          <SpeakerButton
-                            messageId={msg.id ?? `idx-${index}`}
-                            text={msg.content}
-                            playingId={playingId}
-                            loadingId={loadingId}
-                            onSpeak={speak}
-                          />
-                        </div>
+                        {/* Speaker button — only shown when streaming is complete */}
+                        {!msg.streaming && (
+                          <div className="bubble-actions">
+                            <SpeakerButton
+                              messageId={msg.id ?? `idx-${index}`}
+                              text={msg.content}
+                              playingId={playingId}
+                              loadingId={loadingId}
+                              onSpeak={speak}
+                            />
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
                 </div>
               ))}
 
-              {sending && (
-                <div className="message assistant">
-                  <div className="bubble typing">Thinking…</div>
-                </div>
-              )}
               <div ref={chatEndRef} />
             </div>
 

@@ -55,11 +55,12 @@ METADATA_SENTINEL = "\n[[METADATA]]"
 # Langfuse name: fin-rag-web-system (set in settings.langfuse_prompt_web_system).
 # seed_prompts.py registers this exact string as the first version.
 WEB_SYSTEM_PROMPT = (
-    "You are a helpful assistant. Answer the user's question using ONLY "
-    "the provided web search snippets. Be concise and factual. "
-    "If the snippets do not contain enough information to answer, say so clearly. "
-    "Do not invent numbers or facts. Output ONLY the direct answer; do NOT repeat or echo "
-    "the user's question, and do NOT output internal thinking notes."
+    "You are a financial document assistant answering using live web search results.\n\n"
+    "INSTRUCTIONS:\n"
+    "1. Extract relevant numbers, financial figures, revenue, profit, or metrics present anywhere in the web snippets.\n"
+    "2. If the user asks to compare companies, metrics, or years, provide a clear comparison table or breakdown using stated numbers.\n"
+    "3. Every factual claim must end with a web citation marker like [Web 1] or [Web 2].\n"
+    "4. Output ONLY the direct answer. Be factual, direct, and concise."
 )
 
 
@@ -154,19 +155,44 @@ class AnswerService:
     ) -> AsyncIterator[str]:
         compressed = self.compressor.compress(pipeline_result.reranked_chunks)
         if not compressed:
-            no_answer = await self._no_answer_response(pipeline_result, confidence=0.0, trace=trace)
-            yield no_answer.answer
+            confidence = 0.0
+            needs_web = self._needs_web_fallback(pipeline_result, confidence, is_no_answer=True)
+            web_sources = (
+                await self._tavily_search(pipeline_result.rewritten_query, trace=trace)
+                if needs_web else []
+            )
+            full_text = ""
+            if web_sources:
+                async for token in self._stream_web_answer(
+                    pipeline_result.rewritten_query, web_sources, trace=trace
+                ):
+                    full_text += token
+                    yield token
+            else:
+                full_text = NO_ANSWER_PHRASE
+                yield full_text
+
+            no_answer = ChatResponse(
+                answer=full_text,
+                confidence_score=confidence,
+                citations=[],
+                used_web_fallback=bool(web_sources),
+                web_sources=web_sources,
+                rewritten_query=pipeline_result.rewritten_query,
+            )
             yield METADATA_SENTINEL + no_answer.model_dump_json()
             return
 
         confidence = self.confidence_scorer.score(pipeline_result.entities, compressed)
 
         # Fetch the live system prompt once per stream call.
-        # Returns from the in-process cache; never blocks the event loop.
         system_prompt = await get_answer_system_prompt()
         user_prompt = build_user_prompt(pipeline_result.rewritten_query, compressed)
 
         full_text = ""
+        buffered_tokens = []
+        is_streaming_live = False
+
         generation = None
         if trace:
             generation = trace.generation(
@@ -182,11 +208,20 @@ class AnswerService:
                 max_tokens=1000,
             ):
                 full_text += token
-                yield token
+                if is_streaming_live:
+                    yield token
+                else:
+                    buffered_tokens.append(token)
+                    current_buf = "".join(buffered_tokens)
+                    # If buffered text diverges from NO_ANSWER_PHRASE prefix, start live streaming!
+                    if not NO_ANSWER_PHRASE.startswith(current_buf.strip()):
+                        for t in buffered_tokens:
+                            yield t
+                        is_streaming_live = True
+                        buffered_tokens.clear()
         except Exception:
             logger.exception("Streaming answer generation failed")
             full_text = NO_ANSWER_PHRASE
-            yield full_text
         finally:
             if generation:
                 generation.end(
@@ -195,17 +230,31 @@ class AnswerService:
                 )
 
         is_no_answer = NO_ANSWER_PHRASE in full_text
-        citations = [] if is_no_answer else self._extract_citations(full_text, compressed)
         needs_web = self._needs_web_fallback(pipeline_result, confidence, is_no_answer)
-        web_sources = (
-            await self._tavily_search(pipeline_result.rewritten_query, trace=trace)
-            if needs_web else []
-        )
 
-        if is_no_answer and web_sources:
-            full_text = await self._generate_web_answer(
-                pipeline_result.rewritten_query, web_sources, trace=trace
-            )
+        web_sources = []
+        if is_no_answer:
+            if needs_web:
+                web_sources = await self._tavily_search(pipeline_result.rewritten_query, trace=trace)
+
+            if web_sources:
+                web_text = ""
+                async for token in self._stream_web_answer(
+                    pipeline_result.rewritten_query, web_sources, trace=trace
+                ):
+                    web_text += token
+                    yield token
+                full_text = web_text
+            else:
+                if not is_streaming_live:
+                    for t in buffered_tokens:
+                        yield t
+        else:
+            if not is_streaming_live:
+                for t in buffered_tokens:
+                    yield t
+
+        citations = [] if is_no_answer else self._extract_citations(full_text, compressed)
 
         eval_metrics = self.eval_service.evaluate(
             question=pipeline_result.original_query,
@@ -297,8 +346,13 @@ class AnswerService:
         return citations
 
     async def _tavily_search(self, query: str, trace=None) -> list:
-        span = trace.span(name="tavily-web-search", input={"query": query}) if trace else None
-        results = await self.tavily_client.search(query)
+        search_query = query
+        lowered = query.lower()
+        if not any(k in lowered for k in ["annual report", "financial", "profit", "revenue", "results", "statement"]):
+            search_query = f"{query} financial results annual report"
+
+        span = trace.span(name="tavily-web-search", input={"query": search_query}) if trace else None
+        results = await self.tavily_client.search(search_query)
         if span:
             span.end(output={"num_results": len(results)})
         return results
@@ -312,7 +366,6 @@ class AnswerService:
             for i, source in enumerate(web_sources)
         )
 
-        # Fetch the live web system prompt (in-process cache; non-blocking).
         web_system_prompt = await prompt_manager.get(
             self.settings.langfuse_prompt_web_system,
             fallback=WEB_SYSTEM_PROMPT,
@@ -332,7 +385,7 @@ class AnswerService:
                     user_prompt=(
                         f"Web search results:\n\n{sources_block}\n\n---\n\nQuestion: {query}"
                     ),
-                    max_tokens=400,
+                    max_tokens=1200,
                 )
             ).strip()
             if generation:
@@ -348,6 +401,54 @@ class AnswerService:
             if generation:
                 generation.end(output=fallback, level="ERROR")
             return fallback
+
+    async def _stream_web_answer(
+        self, query: str, web_sources: list, trace=None
+    ) -> AsyncIterator[str]:
+        if not web_sources:
+            yield NO_ANSWER_PHRASE
+            return
+
+        sources_block = "\n\n".join(
+            f"[Web {i + 1}] {source.title}\n{source.snippet}\nURL: {source.url}"
+            for i, source in enumerate(web_sources)
+        )
+
+        web_system_prompt = await prompt_manager.get(
+            self.settings.langfuse_prompt_web_system,
+            fallback=WEB_SYSTEM_PROMPT,
+        )
+
+        generation = None
+        if trace:
+            generation = trace.generation(
+                name="web-fallback-answer-stream",
+                model=getattr(self.llm_client, "model_name", ""),
+                input=sources_block,
+            )
+        full_text = ""
+        try:
+            async for token in self.llm_client.stream_complete(
+                system_prompt=web_system_prompt,
+                user_prompt=(
+                    f"Web search results:\n\n{sources_block}\n\n---\n\nQuestion: {query}"
+                ),
+                max_tokens=1200,
+            ):
+                full_text += token
+                yield token
+            if generation:
+                generation.end(output=full_text)
+        except Exception:
+            logger.exception("Streaming web answer generation failed")
+            fallback = (
+                "I couldn't find this in your uploaded document. "
+                "Here are relevant web results:\n\n"
+                + "\n".join(f"- {s.title}: {s.url}" for s in web_sources[:3])
+            )
+            if generation:
+                generation.end(output=fallback, level="ERROR")
+            yield fallback
 
     async def _no_answer_response(
         self, pipeline_result: QueryPipelineResult, confidence: float, trace=None

@@ -36,6 +36,9 @@ questions into fully explicit, standalone questions, without changing their mean
 Rules:
 - Preserve the original intent exactly. Do not add facts, years, or company \
 names that weren't stated or clearly implied by the conversation.
+- Normalize company names and financial metrics into clear, proper financial terms \
+(e.g., capitalize company names like "netsol technologies" -> "Netsol Technologies", \
+and standard financial terms like "earning per share" -> "earnings per share").
 - If recent conversation is provided, use it ONLY to resolve pronouns, \
 ellipsis, or follow-up references ("what about Europe?", "and last year?"). \
 Do not pull in unrelated details from earlier turns.
@@ -45,6 +48,10 @@ Do not pull in unrelated details from earlier turns.
 you MUST preserve that exact number in the rewritten question. Never drop or \
 change numerical quantities the user specified.
 - Output ONLY the rewritten question. No preamble, no quotes, no explanation.
+
+Example:
+Input: what is the earning per share of netsol technologies in 2017
+Output: What was the earnings per share of Netsol Technologies in 2017 or for any reported period in 2017?
 
 Example:
 Input: How much profit?

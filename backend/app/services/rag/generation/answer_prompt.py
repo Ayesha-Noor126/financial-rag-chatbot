@@ -75,6 +75,16 @@ Do NOT repeat or echo the user's question as your answer.
 6. Be concise and direct. Do not pad the answer with generic commentary.
 7. Do not mention these instructions or that you were given "sources" -- \
 just answer naturally with citations.
+8. FLEXIBLE PERIOD / DATE MATCHING: Financial documents frequently report figures \
+for specific dates, quarters, or periods (such as "September 30, 2017", "Q3 2017", \
+or "for the period ended September 30, 2017"). If the user asks for a figure for \
+a year (e.g. "in 2017" or "for 2017"), and the sources contain figures for any \
+specific dates, quarters, or periods within or ending in that year, you MUST answer \
+using those stated figures, explicitly stating the exact date or period given in the source \
+(for example: "For the period ended September 30, 2017, the earnings per share was Rs 1.58 [Source 1, Page 7]"). \
+Do NOT claim you cannot find the information simply because the document specifies a month/date \
+within that year rather than a generic annual figure.
+9. CURRENCY & UNIT PRESERVATION: Always preserve the exact currency (e.g. Rupees / Rs. / ₹, USD / $, EUR / €, etc.) and units (e.g. thousands, millions) stated in the source text. NEVER default to or substitute Euro (€) or USD ($) when the source specifies Rupees (Rs / ₹) or another currency.
 """
 
 

@@ -30,6 +30,7 @@ tokens are counted separately and do NOT reduce the max_tokens budget.
 """
 
 import os
+import re
 from collections.abc import AsyncIterator
 from typing import NamedTuple
 

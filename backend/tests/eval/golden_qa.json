@@ -1,0 +1,72 @@
+[
+  {
+    "id": "fin-001",
+    "question": "What was Horizon Capital's total revenue for fiscal year 2023?",
+    "expected_answer": "Horizon Capital's total revenue for fiscal year 2023 was $4.82 billion.",
+    "min_confidence": 0.40,
+    "tags": ["revenue", "numeric", "annual"]
+  },
+  {
+    "id": "fin-002",
+    "question": "How did net income change from 2022 to 2023?",
+    "expected_answer": "Net income increased from $312 million in 2022 to $389 million in 2023, a growth of approximately 24.7%.",
+    "min_confidence": 0.40,
+    "tags": ["net_income", "yoy_comparison", "numeric"]
+  },
+  {
+    "id": "fin-003",
+    "question": "What is Horizon Capital's primary business segment and what percentage of revenue does it contribute?",
+    "expected_answer": "The Asset Management segment is Horizon Capital's primary business, contributing 58% of total revenue.",
+    "min_confidence": 0.40,
+    "tags": ["segment", "percentage", "business_overview"]
+  },
+  {
+    "id": "fin-004",
+    "question": "What was the operating margin for fiscal year 2023?",
+    "expected_answer": "The operating margin for fiscal year 2023 was 18.3%.",
+    "min_confidence": 0.40,
+    "tags": ["operating_margin", "profitability", "numeric"]
+  },
+  {
+    "id": "fin-005",
+    "question": "How much did Horizon Capital spend on research and development in 2023?",
+    "expected_answer": "Horizon Capital invested $142 million in research and development in fiscal year 2023.",
+    "min_confidence": 0.40,
+    "tags": ["r_and_d", "expenditure", "numeric"]
+  },
+  {
+    "id": "fin-006",
+    "question": "What were the total assets under management at the end of 2023?",
+    "expected_answer": "Total assets under management reached $87.4 billion at the end of fiscal year 2023.",
+    "min_confidence": 0.40,
+    "tags": ["aum", "asset_management", "numeric"]
+  },
+  {
+    "id": "fin-007",
+    "question": "What risk factors did Horizon Capital identify in its 2023 annual report?",
+    "expected_answer": "Key risk factors include market volatility, regulatory changes in financial markets, cybersecurity threats, and concentration risk in the Asset Management segment.",
+    "min_confidence": 0.35,
+    "tags": ["risk_factors", "qualitative", "governance"]
+  },
+  {
+    "id": "fin-008",
+    "question": "What dividend per share was declared for fiscal year 2023?",
+    "expected_answer": "Horizon Capital declared a dividend of $1.85 per share for fiscal year 2023.",
+    "min_confidence": 0.40,
+    "tags": ["dividend", "shareholder_returns", "numeric"]
+  },
+  {
+    "id": "fin-009",
+    "question": "What geographic regions does Horizon Capital operate in?",
+    "expected_answer": "Horizon Capital operates across North America (45% of revenue), Europe (31%), and Asia-Pacific (24%).",
+    "min_confidence": 0.35,
+    "tags": ["geographic", "regions", "percentage"]
+  },
+  {
+    "id": "fin-010",
+    "question": "What was the earnings per share (EPS) for fiscal year 2023?",
+    "expected_answer": "Basic earnings per share for fiscal year 2023 was $3.24.",
+    "min_confidence": 0.40,
+    "tags": ["eps", "per_share", "numeric"]
+  }
+]

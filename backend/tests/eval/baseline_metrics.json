@@ -1,0 +1,7 @@
+{
+  "avg_faithfulness": 0.0,
+  "avg_answer_relevancy": 0.0,
+  "avg_contextual_precision": 0.0,
+  "avg_contextual_recall": 0.0,
+  "_note": "This is the initial baseline. After the first successful scheduled eval run, update this file with the actual results from eval_results.json to establish a real regression baseline. Set avg values to 0.0 so the first run always passes (no regression possible against zero)."
+}

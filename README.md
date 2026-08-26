@@ -519,7 +519,76 @@ curl -f http://localhost:8000/health
 
 ---
 
-##  Potential Improvements & Future Work
+##  RAG Evaluation & Regression Testing
+
+This project includes a scheduled RAG evaluation pipeline ([`.github/workflows/rag_eval.yml`](.github/workflows/rag_eval.yml)) that goes beyond unit tests to measure the actual *quality* of the retrieval-augmented generation pipeline.
+
+### Conceptual Design: Why This Is Real
+
+Most "scheduled" CI workflows automate meaningless tasks. This one is different:
+
+| Property | Implementation |
+|---|---|
+| **Fixed ground truth** | `tests/eval/golden_qa.json` — 10 curated financial QA pairs with expected answers |
+| **Real pipeline execution** | Starts a live `uvicorn` server, ingests a PDF, POSTs actual questions to `/debug/answer` |
+| **LLM-as-judge scoring** | DeepEval metrics via `GroqJudge` (same model used in production, pinned `temperature=0, seed=42`) |
+| **Regression detection** | Compares current run against a stored `baseline_metrics.json`; fails CI if any metric drops >10% |
+| **Artifact-based baseline** | Each successful run updates the baseline artifact; the next run downloads it automatically |
+
+### Workflow Schedule
+
+| Trigger | What Runs |
+|---|---|
+| `push` to `main` | Fast CI: tests, lint, docker build (`ci.yml`) |
+| Every Monday 02:00 UTC | Full RAG evaluation vs golden dataset (`rag_eval.yml`) |
+| 1st of every month 03:00 UTC | Weekly eval + monthly trend report across last 4 runs |
+| `workflow_dispatch` | Manual trigger — useful after intentional improvements |
+
+### How to Read Evaluation Results
+
+1. Go to **Actions → Scheduled RAG Evaluation** on GitHub.
+2. Click on a run, then **RAG Pipeline Evaluation** job.
+3. Each step shows the question-by-question scores.
+4. The **"Write Summary to GitHub Actions UI"** step renders a markdown table with:
+   - Current metric values vs baseline
+   - 🔺 Improved / 🔻 Regressed / ➡️ Stable indicators
+   - Any detected regressions highlighted in red.
+
+### How to Add New Golden Test Cases
+
+Edit [`backend/tests/eval/golden_qa.json`](backend/tests/eval/golden_qa.json) and add a new entry:
+
+```json
+{
+  "id": "fin-011",
+  "question": "Your question here",
+  "expected_answer": "The expected answer grounded in the fixture document",
+  "min_confidence": 0.40,
+  "tags": ["your_tag"]
+}
+```
+
+The `expected_answer` must be answerable from the synthetic `Horizon Capital Annual Report 2023` fixture embedded in [`run_rag_eval.py`](backend/tests/eval/run_rag_eval.py). If you add a question about new content, also add that content to `FIXTURE_REPORT_TEXT` in the harness.
+
+### How to Update the Baseline (After Intentional Improvements)
+
+When you make a meaningful improvement to the pipeline (e.g., new embedding model, better chunking), the new scores should become the reference baseline:
+
+1. Trigger a manual run: **Actions → Scheduled RAG Evaluation → Run workflow**.
+2. After a clean pass, download the `rag-eval-baseline` artifact.
+3. Replace `backend/tests/eval/baseline_metrics.json` with the downloaded file.
+4. Commit: `git commit -m "eval: update baseline after embedding model upgrade"`.
+
+### Required GitHub Secret
+
+Add `GROQ_API_KEY` to your repository secrets for the LLM judge to score answers:
+**GitHub → Repository → Settings → Secrets and variables → Actions → New repository secret**
+
+Without it, DeepEval scoring is skipped and only `confidence_score` thresholds are validated.
+
+---
+
+
 
 > Areas to extend the system further:
 

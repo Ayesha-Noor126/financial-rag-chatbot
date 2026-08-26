@@ -588,37 +588,6 @@ Without it, DeepEval scoring is skipped and only `confidence_score` thresholds a
 
 ---
 
-
-
-> Areas to extend the system further:
-
-###  Authentication & Multi-tenancy
-- Add JWT-based auth so each user has isolated document collections.
-- Per-user FAISS namespaces or a dedicated vector DB (Qdrant, Weaviate) for production scale.
-
-###  Multi-document & Cross-document Queries
-- Currently answers are grounded across all uploaded documents; adding metadata filters (by document, date, ticker) would improve precision.
-
-###  Streaming Responses
-- The backend `AnswerService` already supports `AsyncIterator` streaming — wire the frontend to consume server-sent events (SSE) for real-time token streaming.
-
-###  Incremental Indexing
-- Re-index only changed/new pages when a document is re-uploaded rather than full re-ingestion.
-
-###  Regression Test Suite
-- Expand `tests/` with a golden-set QA dataset (questions + expected answers) and CI checks on faithfulness scores.
-
-###  Dockerization
-- Add `Dockerfile` + `docker-compose.yml` for one-command local setup and straightforward cloud deployment.
-
-###  Analytics Dashboard
-- Expose Langfuse trace data in a dashboard showing average latency per pipeline stage, confidence distributions, and web fallback rates over time.
-
-###  Table & Chart Extraction
-- Extend the PDF parser to handle financial tables (e.g., with `camelot` or `pdfplumber`) and structured data extraction, improving accuracy on numeric queries.
-
----
-
 ##  Contributing
 
 Contributions are welcome! Please open an issue to discuss your proposed change before submitting a PR.

@@ -444,6 +444,81 @@ All tunables live in `backend/app/core/config.py` and are overridable via `.env`
 
 ---
 
+##  Continuous Integration (CI) & GitHub Actions
+
+This repository includes an automated GitHub Actions CI pipeline ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) that verifies code quality, runs test suites, checks frontend builds, and validates Docker container images on every `push` and `pull_request` to `main`.
+
+### Pipeline Architecture
+
+```
+Push / Pull Request
+       │
+       ├──► 1. Backend Pytest Suite (Python 3.11 + CPU PyTorch + spaCy + pytest-cov)
+       ├──► 2. Frontend Lint & Build (Node 20 + oxlint + vite build)
+       ├──► 3. Docker Image Build Check (Backend & Frontend images via Buildx)
+       └──► 4. Docker Compose Integration Smoke Test (Container healthchecks)
+```
+
+### CI Triggers & Caching
+- **Triggers**: Executes automatically on `push` to `main`/`master` and on `pull_request` targeting `main`/`master`.
+- **Caching**:
+  - `pip` wheel caching for Python dependencies.
+  - `npm` module caching for Node dependencies.
+  - `Docker GHA layer caching` (`cache-from: type=gha`) to make image builds fast.
+
+---
+
+### How to Understand and Debug CI Failures
+
+When a CI run fails on GitHub, follow this 4-step workflow to diagnose and fix the failure:
+
+#### Step 1: Locate the Failing Job and Step in GitHub
+1. Navigate to the **Actions** tab in your GitHub repository.
+2. Click on the failed workflow run (marked with a red `X`).
+3. Click on the job that failed (e.g., `Backend Pytest Suite` or `Frontend Lint & Build`).
+4. Click on the specific step that has a red error indicator to expand its logs.
+
+#### Step 2: Identify Failure Categories
+
+| Error Pattern | Root Cause | How to Fix |
+|---|---|---|
+| `pytest: command not found` or `ModuleNotFoundError` | Missing Python dependency or incorrect virtualenv context. | Check `requirements.txt` / `requirements-dev.txt` and ensure new packages are declared. |
+| `AssertionError` in pytest | A unit test or API test failed due to logic changes. | Run `pytest` locally (see Step 3 below) and inspect tracebacks. |
+| `oxlint` or `ESLint` error | Frontend linting violation (unused variable, syntax error). | Run `npm run lint` in `frontend/` locally to fix reported lines. |
+| `vite build` error | TypeScript or JSX compilation failure. | Run `npm run build` locally in `frontend/` to view exact compile error. |
+| `docker build` failed | Dockerfile instruction failure (missing package or file path). | Run `docker build -t test ./backend` locally to reproduce build step error. |
+
+#### Step 3: Reproduce and Debug Failures Locally
+
+Before pushing code to GitHub, run the CI checks locally on your machine:
+
+**1. Debug Backend Tests Locally:**
+```powershell
+cd backend
+python -m pytest --cov=app -vv
+```
+
+**2. Debug Frontend Lint & Build Locally:**
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
+
+**3. Debug Docker Compose Integration Locally:**
+```powershell
+docker compose up --build -d
+docker inspect --format="{{.State.Health.Status}}" fin-rag-backend
+docker inspect --format="{{.State.Health.Status}}" fin-rag-frontend
+curl -f http://localhost:8000/health
+```
+
+#### Step 4: Environment Variables & Mocks in CI
+- CI runs in isolated GitHub runner VMs where live API keys (`GROQ_API_KEY`, `TAVILY_API_KEY`) are intentionally not provided.
+- Backend tests use pytest mocks and fallback mechanisms. If adding a new feature that calls an external service, ensure a fallback or mock fixture is implemented in `tests/conftest.py`.
+
+---
+
 ##  Potential Improvements & Future Work
 
 > Areas to extend the system further:

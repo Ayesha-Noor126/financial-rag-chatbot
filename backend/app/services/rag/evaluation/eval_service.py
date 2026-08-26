@@ -11,6 +11,7 @@ from app.core.config import get_settings
 class RAGEvaluationService:
     def __init__(self, model: str | None = None) -> None:
         settings = get_settings()
+        self.enabled = os.getenv("ENABLE_LIVE_EVAL", "false").lower() in ("true", "1")
         self.model = model or os.getenv("DEEPEVAL_JUDGE_MODEL", settings.llm_model)
         api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("OPENAI_API_KEY") or settings.llm_api_key
         base_url = os.environ.get("GROQ_BASE_URL") or settings.llm_base_url
@@ -26,7 +27,7 @@ class RAGEvaluationService:
         contexts: list[str],
         expected_answer: str | None = None,
     ) -> dict[str, float]:
-        if not self.client or not getattr(self.client, "api_key", None):
+        if not self.enabled or not self.client or not getattr(self.client, "api_key", None):
             return self._fallback_scores()
 
         prompt = self._build_prompt(question, answer, contexts, expected_answer)

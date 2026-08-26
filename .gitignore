@@ -1,53 +1,52 @@
 # --------------------
-# Backend
+# Environment & Secret Files
 # --------------------
-
-backend/venv311/
-backend/__pycache__/
+.env
+.env.local
+.env.*.local
 backend/.env
+frontend/.env
+frontend/.env.local
 
-# Storage files (if they are generated at runtime)
-backend/storage/
+# --------------------
+# Docker & Overrides
+# --------------------
+docker-compose.override.yml
+
+# --------------------
+# Backend & Virtual Environments
+# --------------------
+.venv/
+backend/venv311/
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.deepeval/
+backend/tmp_*.py
+
+# Storage directory (generated data: SQLite DB, FAISS index, PDF uploads)
+backend/storage/*
+!backend/storage/.gitkeep
 
 # --------------------
 # Frontend
 # --------------------
-
 frontend/node_modules/
 frontend/dist/
-frontend/.env.local 
-frontend/.env
+frontend/.vite/
 
 # --------------------
 # Python
 # --------------------
-
-*.pyc
-*.pyo
-*.pyd
+__pycache__/
+*.py[cod]
+*$py.class
 
 # --------------------
-# VS Code
+# IDE & System Files
 # --------------------
-
 .vscode/
-
-# --------------------
-# Operating System Files
-# --------------------
-
+.idea/
 .DS_Store
 Thumbs.db
-
-
-
-
-# DeepEval cache
-backend/.deepeval/
-
-# Temporary scripts
-backend/tmp_*.py
-
-# Python cache
-__pycache__/
-*.pyc
+*.log

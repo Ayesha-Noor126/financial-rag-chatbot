@@ -61,8 +61,11 @@ async def chat(
     response: ChatResponse = await chat_service.handle_message(
         request.session_id, request.message, trace=root_trace
     )
-    if root_trace:
+    if root_trace and lf:
         # update the trace with output; no explicit `end()` on traces
         root_trace.update(output=response.answer)
-        lf.flush()  # force send now instead of waiting for batch interval
+        try:
+            lf.flush()  # attempt flush, non-fatal if offline
+        except Exception:
+            pass
     return response

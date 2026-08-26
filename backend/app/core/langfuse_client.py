@@ -41,16 +41,29 @@ def init_langfuse(settings: Settings) -> Langfuse | None:
     """
     global _langfuse_client
 
-    if not settings.langfuse_enabled:
-        logger.info("Langfuse disabled via settings")
-        # Initialise prompt manager with None so it falls back to hardcoded strings.
+    pub_key = (settings.langfuse_public_key or "").strip()
+    sec_key = (settings.langfuse_secret_key or "").strip()
+    is_dummy = (
+        not pub_key
+        or not sec_key
+        or "your_public_key_here" in pub_key
+        or "your_secret_key_here" in sec_key
+        or pub_key == "pk-lf-your_public_key_here"
+    )
+
+    if not settings.langfuse_enabled or is_dummy:
+        if is_dummy and settings.langfuse_enabled:
+            logger.info("Langfuse disabled — placeholder or missing API keys detected")
+        else:
+            logger.info("Langfuse disabled via settings")
+        _langfuse_client = None
         prompt_manager.init(None, cache_ttl_seconds=settings.langfuse_prompt_cache_ttl_seconds)
         return None
 
     try:
         _langfuse_client = Langfuse(
-            public_key=settings.langfuse_public_key,
-            secret_key=settings.langfuse_secret_key,
+            public_key=pub_key,
+            secret_key=sec_key,
             host=settings.langfuse_host,
         )
         logger.info(

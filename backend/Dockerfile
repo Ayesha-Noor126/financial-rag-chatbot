@@ -30,8 +30,9 @@ RUN pip install --no-cache-dir torch==2.4.1 --extra-index-url https://download.p
 # Install remaining Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download spaCy model at image build time so container starts instantly without downloading
+# Download spaCy model and HuggingFace models at image build time so container starts instantly without downloading at runtime
 RUN python -m spacy download en_core_web_sm
+RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('BAAI/bge-large-en-v1.5'); CrossEncoder('BAAI/bge-reranker-base')"
 
 # 6. APPLICATION CODE: Copy application source code
 COPY app /app/app

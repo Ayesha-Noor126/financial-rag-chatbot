@@ -79,7 +79,7 @@ DEFAULT_BASELINE_PATH = EVAL_DIR / "baseline_metrics.json"
 
 FIXTURE_REPORT_TEXT = """
 HORIZON CAPITAL GROUP
-Annual Report — Fiscal Year 2023
+Annual Report - Fiscal Year 2023
 
 EXECUTIVE SUMMARY
 Horizon Capital Group delivered strong financial results for fiscal year 2023.
@@ -136,8 +136,30 @@ def _create_fixture_pdf() -> bytes:
     """
     Generate a minimal PDF containing the synthetic financial report text.
     Uses fpdf2 (a lightweight, zero-dependency PDF writer).
-    Falls back to a UTF-8 text file disguised as a PDF if fpdf2 is not installed.
+
+    The built-in Helvetica/Times/Courier core fonts only support latin-1 (ISO
+    8859-1). Any character outside that range (e.g. smart quotes, em-dashes,
+    non-breaking spaces) will raise FPDFUnicodeEncodingException.  We sanitise
+    each line before passing it to fpdf2 so a stray Unicode character can never
+    crash the entire evaluation pipeline.
     """
+    def _to_latin1(text: str) -> str:
+        """Replace characters not encodable in latin-1 with ASCII equivalents."""
+        replacements = {
+            "\u2014": "-",   # em dash
+            "\u2013": "-",   # en dash
+            "\u2018": "'",   # left single quotation mark
+            "\u2019": "'",   # right single quotation mark
+            "\u201c": '"',   # left double quotation mark
+            "\u201d": '"',   # right double quotation mark
+            "\u2026": "...", # ellipsis
+            "\u00a0": " ",   # non-breaking space
+        }
+        for char, replacement in replacements.items():
+            text = text.replace(char, replacement)
+        # Final safety net: drop anything still outside latin-1
+        return text.encode("latin-1", errors="replace").decode("latin-1")
+
     try:
         from fpdf import FPDF  # type: ignore
 
@@ -146,19 +168,17 @@ def _create_fixture_pdf() -> bytes:
         pdf.add_page()
         pdf.set_font("Helvetica", size=11)
         for line in FIXTURE_REPORT_TEXT.split("\n"):
-            if line.strip() == "":
+            safe_line = _to_latin1(line)
+            if safe_line.strip() == "":
                 pdf.ln(4)
-            elif line.isupper() and len(line) < 60:
+            elif safe_line.isupper() and len(safe_line) < 60:
                 pdf.set_font("Helvetica", "B", size=12)
-                pdf.multi_cell(0, 7, line)
+                pdf.multi_cell(0, 7, safe_line)
                 pdf.set_font("Helvetica", size=11)
             else:
-                pdf.multi_cell(0, 6, line)
+                pdf.multi_cell(0, 6, safe_line)
         return pdf.output()
     except ImportError:
-        # Graceful fallback: fpdf2 not installed.
-        # Return bytes that PyMuPDF will likely fail to parse, so we catch
-        # that error below and skip fixture ingestion with a clear warning.
         raise
 
 

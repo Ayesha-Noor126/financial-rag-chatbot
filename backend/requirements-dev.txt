@@ -1,13 +1,17 @@
-# Test-only dependencies — NOT installed in the production image.
-# Install with: pip install -r requirements-dev.txt
-# (after requirements.txt is already installed)
+# ──────────────────────────────────────────────────────────────────────────────
+# Development & evaluation dependencies — NOT installed in the production image.
+# Install AFTER requirements.txt: pip install -r requirements-dev.txt
+# ──────────────────────────────────────────────────────────────────────────────
 
+# Testing
 pytest==8.3.5
 pytest-asyncio==0.24.0
 pytest-cov==6.0.0
-# httpx is already in requirements.txt (runtime dep); listed here for clarity
+
+# HTTP test client — must satisfy the same range as requirements.txt because
+# deepeval → google-genai requires httpx>=0.28.1.
 httpx>=0.28.1,<1.0.0
 
-# RAG evaluation harness (tests/eval/run_rag_eval.py)
-fpdf2==2.8.3          # generates the synthetic fixture PDF at eval time
-deepeval==2.7.9       # DeepEval metrics: FaithfulnessMetric, AnswerRelevancyMetric, etc.
+# RAG evaluation harness (backend/rag_eval.py)
+fpdf2==2.8.3        # generates the synthetic fixture PDF at eval time
+deepeval==2.7.9     # DeepEval metrics: Faithfulness, AnswerRelevancy, etc.

@@ -43,7 +43,7 @@ jobs:
           python -m spacy download en_core_web_sm
 
       - name: Run Pytest with Coverage
-        cwd: ./backend
+        working-directory: ./backend
         env:
           LLM_API_KEY: "dummy-key-for-ci"
           LANGFUSE_ENABLED: "false"

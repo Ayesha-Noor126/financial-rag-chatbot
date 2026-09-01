@@ -1,3 +1,15 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Production dependencies
+# Install: pip install -r requirements.txt
+#
+# Pinning philosophy:
+#   - Direct deps we control tightly → exact pin (==) or tight range
+#   - Deps shared with heavy-transitive packages (httpx, numpy) → range pin
+#     to avoid ResolutionImpossible errors when deepeval / google-genai pull
+#     in a newer minimum.  Upper-bound <major> prevents accidental breakage.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Web framework
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.9.2
@@ -7,7 +19,7 @@ python-multipart==0.0.9
 # Parsing
 pymupdf==1.24.10
 
-# Chunking / tokenization
+# Chunking / tokenisation
 tiktoken==0.7.0
 
 # Embeddings
@@ -21,10 +33,12 @@ faiss-cpu==1.8.0.post1
 rank-bm25==0.2.2
 
 # NER
-spacy==3.7.6
+# Note: 3.7.6 was yanked on PyPI (incorrect transformer compatibility metadata).
+# 3.8.x is the current stable line and resolves the issue.
+spacy>=3.8.0,<3.9.0
 
-# LLM client — used for BOTH OpenAI and Groq (Groq's API is OpenAI-compatible,
-# see app/core/llm_client.py). No separate groq package needed.
+# LLM client — used for BOTH OpenAI and Groq (Groq's API is OpenAI-compatible).
+# No separate groq package needed.
 openai==1.51.0
 
 # Metadata store
@@ -37,9 +51,13 @@ cachetools==5.5.0
 numpy==1.26.4
 python-dotenv==1.0.1
 loguru==0.7.2
-
-
 requests==2.32.3
+
+# Observability
 langfuse==2.60.10
 
+# HTTP client
+# Lower-bound >=0.28.1 required by google-genai (pulled in transitively by
+# deepeval in requirements-dev.txt). Upper-bound <1.0.0 prevents accidental
+# adoption of a future breaking major version.
 httpx>=0.28.1,<1.0.0

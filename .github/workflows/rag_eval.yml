@@ -164,7 +164,7 @@ jobs:
       - name: Write Summary to GitHub Actions UI
         if: always()
         run: |
-          cat backend/eval_output.txt >> $GITHUB_STEP_SUMMARY
+          [ -f backend/eval_output.txt ] && cat backend/eval_output.txt >> $GITHUB_STEP_SUMMARY || echo "No eval output file found (pipeline may have failed before evaluation ran)." >> $GITHUB_STEP_SUMMARY
 
       # ── Upload Results as Artifact ─────────────────────────────────────────
       - name: Upload Eval Results Artifact

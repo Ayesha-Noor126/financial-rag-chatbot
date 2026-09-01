@@ -137,49 +137,70 @@ def _create_fixture_pdf() -> bytes:
     Generate a minimal PDF containing the synthetic financial report text.
     Uses fpdf2 (a lightweight, zero-dependency PDF writer).
 
-    The built-in Helvetica/Times/Courier core fonts only support latin-1 (ISO
-    8859-1). Any character outside that range (e.g. smart quotes, em-dashes,
-    non-breaking spaces) will raise FPDFUnicodeEncodingException.  We sanitise
-    each line before passing it to fpdf2 so a stray Unicode character can never
-    crash the entire evaluation pipeline.
+    Design notes:
+    - Core fonts (Helvetica/Times/Courier) support latin-1 only.  We sanitise
+      to pure ASCII before writing so no FPDFUnicodeEncodingException can occur.
+    - We pass an EXPLICIT cell width (never w=0) to every multi_cell call.
+      In fpdf2 2.8.x, w=0 resolves to "remaining width from current X cursor".
+      If the cursor drifts by even a fraction of a mm (e.g. after set_font()),
+      fpdf2 calculates 0 or negative available width and raises:
+          FPDFException: Not enough horizontal space to render a single character
+      Using a pre-calculated explicit width is unconditionally safe.
     """
-    def _to_latin1(text: str) -> str:
-        """Replace characters not encodable in latin-1 with ASCII equivalents."""
-        replacements = {
-            "\u2014": "-",   # em dash
-            "\u2013": "-",   # en dash
-            "\u2018": "'",   # left single quotation mark
-            "\u2019": "'",   # right single quotation mark
-            "\u201c": '"',   # left double quotation mark
-            "\u201d": '"',   # right double quotation mark
-            "\u2026": "...", # ellipsis
-            "\u00a0": " ",   # non-breaking space
+    def _ascii_safe(text: str) -> str:
+        """Map common Unicode punctuation to ASCII, then strip anything else."""
+        subs = {
+            "\u2014": "-",    # em dash
+            "\u2013": "-",    # en dash
+            "\u2018": "'",    # left single quotation mark
+            "\u2019": "'",    # right single quotation mark
+            "\u201c": '"',    # left double quotation mark
+            "\u201d": '"',    # right double quotation mark
+            "\u2026": "...",  # horizontal ellipsis
+            "\u00a0": " ",    # non-breaking space
+            "\u00ad": "",     # soft hyphen (invisible, drop it)
         }
-        for char, replacement in replacements.items():
-            text = text.replace(char, replacement)
-        # Final safety net: drop anything still outside latin-1
-        return text.encode("latin-1", errors="replace").decode("latin-1")
+        for char, sub in subs.items():
+            text = text.replace(char, sub)
+        # Final safety net: silently drop anything still outside ASCII
+        return text.encode("ascii", errors="ignore").decode("ascii")
 
     try:
         from fpdf import FPDF  # type: ignore
 
         pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.set_margins(left=20, top=20, right=20)
+        pdf.set_auto_page_break(auto=True, margin=20)
         pdf.add_page()
+
+        # Pre-calculate the usable column width once; never rely on w=0.
+        cell_w = pdf.w - pdf.l_margin - pdf.r_margin
+
         pdf.set_font("Helvetica", size=11)
         for line in FIXTURE_REPORT_TEXT.split("\n"):
-            safe_line = _to_latin1(line)
-            if safe_line.strip() == "":
+            safe = _ascii_safe(line)
+            if not safe.strip():
                 pdf.ln(4)
-            elif safe_line.isupper() and len(safe_line) < 60:
+            elif safe.isupper() and len(safe) < 60:
+                # Section heading: bold, slightly larger
                 pdf.set_font("Helvetica", "B", size=12)
-                pdf.multi_cell(0, 7, safe_line)
+                pdf.multi_cell(cell_w, 7, safe)
                 pdf.set_font("Helvetica", size=11)
             else:
-                pdf.multi_cell(0, 6, safe_line)
+                pdf.multi_cell(cell_w, 6, safe)
+
         return pdf.output()
+
     except ImportError:
         raise
+    except Exception as exc:
+        # Catch unexpected fpdf2 regressions so the eval pipeline can report
+        # a clear error rather than an opaque traceback from inside fpdf2.
+        raise RuntimeError(
+            f"_create_fixture_pdf failed during PDF generation: {exc}\n"
+            "Check that fpdf2 is installed and the fixture text is ASCII-clean."
+        ) from exc
+
 
 
 # ── Data Classes ──────────────────────────────────────────────────────────────

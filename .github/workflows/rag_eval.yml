@@ -203,7 +203,7 @@ jobs:
         with:
           name: rag-eval-baseline
           path: backend/tests/eval/baseline_metrics.json
-          retention-days: 365   # Keep baseline for a full year
+          retention-days: 90    # Capped by repo policy; keeps baseline for the rolling window
 
       # ── Teardown ───────────────────────────────────────────────────────────
       - name: Stop Backend Server

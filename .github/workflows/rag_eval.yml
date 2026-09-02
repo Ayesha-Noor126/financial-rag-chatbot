@@ -65,12 +65,12 @@ jobs:
     timeout-minutes: 90   # HuggingFace model download + full eval pipeline
 
     env:
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-      LLM_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      LLM_PROVIDER: groq
-      LLM_MODEL: llama-3.3-70b-versatile
-      LLM_BASE_URL: https://api.groq.com/openai/v1
+      LLM_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      LLM_PROVIDER: gemini
+      LLM_MODEL: gemini-2.0-flash
+      LLM_BASE_URL: https://generativelanguage.googleapis.com/v1beta/openai/
       LANGFUSE_ENABLED: "false"
       ENABLE_LIVE_EVAL: "false"
       APP_BASE_URL: http://localhost:8000

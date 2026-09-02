@@ -67,9 +67,11 @@ import httpx
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-JUDGE_MODEL = os.getenv("DEEPEVAL_JUDGE_MODEL", "llama-3.3-70b-versatile")
+APP_BASE_URL  = os.getenv("APP_BASE_URL", "http://localhost:8000")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+# Model used by GeminiJudge inside DeepEval.  gemini-2.0-flash is fast and
+# cheap; swap to gemini-1.5-pro for higher accuracy if needed.
+JUDGE_MODEL   = os.getenv("DEEPEVAL_JUDGE_MODEL", "gemini-2.0-flash")
 EVAL_DIR = Path(__file__).parent
 GOLDEN_QA_PATH = EVAL_DIR / "golden_qa.json"
 DEFAULT_BASELINE_PATH = EVAL_DIR / "baseline_metrics.json"
@@ -304,12 +306,16 @@ def _score_with_deepeval(
     api_key: str,
 ) -> tuple[float | None, float | None, float | None, float | None]:
     """
-    Score one QA pair using DeepEval metrics via GroqJudge.
+    Score one QA pair using DeepEval metrics via GeminiJudge.
+
+    Uses Google's OpenAI-compatible endpoint so we can keep the standard
+    openai client — no extra SDK required.
+
     Returns (faithfulness, answer_relevancy, contextual_precision, contextual_recall).
-    Returns (None, None, None, None) if DeepEval or Groq is unavailable.
+    Returns (None, None, None, None) if DeepEval or the API key is unavailable.
     """
     if not api_key:
-        print("[eval] GROQ_API_KEY not set — skipping LLM scoring for this question.")
+        print("[eval] GEMINI_API_KEY not set — skipping LLM scoring for this question.")
         return None, None, None, None
 
     try:
@@ -323,11 +329,15 @@ def _score_with_deepeval(
         from deepeval.test_case import LLMTestCase  # type: ignore
         from openai import OpenAI
 
-        class GroqJudge(DeepEvalBaseLLM):
+        class GeminiJudge(DeepEvalBaseLLM):
+            """DeepEval-compatible judge backed by Gemini via Google's
+            OpenAI-compatible REST endpoint."""
+
             def __init__(self) -> None:
+                # Google exposes an OpenAI-compatible endpoint; no extra SDK needed.
                 self.client = OpenAI(
                     api_key=api_key,
-                    base_url="https://api.groq.com/openai/v1",
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                 )
 
             def load_model(self):  # type: ignore[override]
@@ -337,7 +347,6 @@ def _score_with_deepeval(
                 resp = self.client.chat.completions.create(
                     model=judge_model,
                     temperature=0,
-                    seed=42,
                     messages=[{"role": "user", "content": prompt}],
                 )
                 return resp.choices[0].message.content or ""
@@ -348,7 +357,7 @@ def _score_with_deepeval(
             def get_model_name(self) -> str:
                 return judge_model
 
-        judge = GroqJudge()
+        judge = GeminiJudge()
         test_case = LLMTestCase(
             input=question,
             actual_output=answer,
@@ -364,11 +373,7 @@ def _score_with_deepeval(
         for m in metrics:
             m.measure(test_case)
 
-        f  = metrics[0].score
-        ar = metrics[1].score
-        cp = metrics[2].score
-        cr = metrics[3].score
-        return f, ar, cp, cr
+        return metrics[0].score, metrics[1].score, metrics[2].score, metrics[3].score
 
     except Exception as exc:
         print(f"[eval] Scoring error: {exc}", file=sys.stderr)
@@ -496,7 +501,7 @@ async def run_evaluation(
                 expected_answer=qa.expected_answer,
                 contexts=contexts,
                 judge_model=JUDGE_MODEL,
-                api_key=GROQ_API_KEY,
+                api_key=GEMINI_API_KEY,
             )
             results.append(QuestionResult(
                 id=qa.id,
